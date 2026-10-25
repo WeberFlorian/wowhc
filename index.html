@@ -1,0 +1,889 @@
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Classic HC Group Builder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+Sans+SC:wght@500;700;800&family=Alegreya+Sans:ital,wght@0,400;0,500;0,700;1,400&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Classic Hardcore copy of the Forever group builder. Same layout: left = party, right = rules and boards that re-check live. Stacks on phones. */
+:root {
+  --bg: #f1efeb;
+  --surface: #ffffff;
+  --sunk: #e7e3dc;
+  --fg: #221f1b;
+  --muted: #655e55;
+  --line: #d8d2c8;
+  --accent: #8a4b1f;
+  --accent-ink: #ffffff;
+  --ok: #2e7d4f;
+  --ok-bg: #e2f2e8;
+  --warn: #8a5a00;
+  --warn-bg: #f8edd6;
+  --bad: #b3261e;
+  --bad-bg: #f9e3e1;
+  --font-display: "Alegreya Sans SC", "Trebuchet MS", sans-serif;
+  --font-body: "Alegreya Sans", "Segoe UI", system-ui, sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --c-warrior: #c69b6d; --c-paladin: #f48cba; --c-hunter: #aad372; --c-rogue: #fff468;
+  --c-priest: #ffffff; --c-shaman: #0070dd; --c-mage: #3fc7eb; --c-warlock: #8788ee; --c-druid: #ff7c0a;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #161412; --surface: #1f1c19; --sunk: #2a2622; --fg: #ece7e0; --muted: #a59d92; --line: #3a342e;
+    --accent: #e0a070; --accent-ink: #1a120c;
+    --ok: #63c891; --ok-bg: #173323; --warn: #e5b24e; --warn-bg: #3a2e14; --bad: #f2837a; --bad-bg: #3d1c1a;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #161412; --surface: #1f1c19; --sunk: #2a2622; --fg: #ece7e0; --muted: #a59d92; --line: #3a342e;
+  --accent: #e0a070; --accent-ink: #1a120c;
+  --ok: #63c891; --ok-bg: #173323; --warn: #e5b24e; --warn-bg: #3a2e14; --bad: #f2837a; --bad-bg: #3d1c1a;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--font-body); font-size: 16px; line-height: 1.45;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 40px;
+}
+.wrap { max-width: 1180px; margin: 0 auto; display: grid; gap: 20px; }
+.head-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.lang { flex: none; }
+header h1 { font-family: var(--font-display); font-weight: 800; font-size: 2rem; letter-spacing: 0.02em; margin: 0; text-wrap: balance; }
+header .sub { margin: 6px 0 0; color: var(--muted); max-width: 70ch; }
+.cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: 20px; align-items: start; }
+@media (max-width: 860px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 14px; min-width: 0; }
+.label { font-family: var(--font-display); font-weight: 700; font-size: 0.82rem; letter-spacing: 0.08em; color: var(--muted); margin: 0; }
+h2 { font-family: var(--font-display); font-weight: 700; font-size: 1.25rem; margin: 0; letter-spacing: 0.02em; }
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.faction-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.picker { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.cls { display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 8px 10px; text-align: left; font-weight: 500; min-width: 0; }
+.cls:hover:not(:disabled) { border-color: var(--accent); }
+.cls:disabled { opacity: 0.45; cursor: not-allowed; }
+.swatch { width: 12px; height: 12px; border-radius: 3px; flex: none; border: 1px solid color-mix(in srgb, var(--fg) 25%, transparent); }
+
+.slots { display: grid; gap: 8px; }
+.slot { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 10px; align-items: center; border: 1px solid var(--line); border-radius: 8px; padding: 10px; background: var(--surface); }
+.slot.empty { border-style: dashed; background: transparent; color: var(--muted); }
+.slot .num { font-family: var(--font-data); font-size: 0.85rem; color: var(--muted); text-align: center; }
+.slot .who { display: grid; gap: 6px; min-width: 0; }
+.slot .name { display: flex; align-items: center; gap: 8px; font-weight: 700; }
+.slot .name .swatch { width: 14px; height: 14px; }
+.ctrls { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.seg button { border: 0; background: transparent; padding: 3px 10px; font-size: 0.9rem; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); font-weight: 700; }
+select { font: inherit; font-size: 0.9rem; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--fg); padding: 3px 6px; }
+.remove { border: 1px solid var(--line); background: transparent; border-radius: 6px; padding: 3px 9px; font-size: 0.9rem; color: var(--muted); }
+.remove:hover { color: var(--bad); border-color: var(--bad); }
+
+.summary { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.rules { display: grid; gap: 10px; }
+.rule { border: 1px solid var(--line); border-left-width: 4px; border-radius: 8px; padding: 10px 12px; display: grid; gap: 6px; }
+.rule[data-state="ok"] { border-left-color: var(--ok); }
+.rule[data-state="part"] { border-left-color: var(--warn); }
+.rule[data-state="bad"] { border-left-color: var(--bad); }
+.rule-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.rule-title { font-weight: 700; }
+.pill { font-family: var(--font-display); font-weight: 700; font-size: 0.78rem; letter-spacing: 0.06em; border-radius: 999px; padding: 2px 9px; white-space: nowrap; }
+.ok { color: var(--ok); background: var(--ok-bg); }
+.part { color: var(--warn); background: var(--warn-bg); }
+.bad { color: var(--bad); background: var(--bad-bg); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { display: inline-flex; gap: 6px; align-items: baseline; border-radius: 6px; padding: 3px 8px; font-size: 0.88rem; }
+.chip b { font-weight: 700; }
+.chip.none { color: var(--muted); background: var(--sunk); }
+#buffs, #items { border-left-color: var(--accent); }
+.pill.none { color: var(--muted); background: var(--sunk); }
+.buff-groups { display: grid; gap: 10px; }
+.buff-group { display: grid; gap: 5px; }
+.buff-group .label { font-size: 0.74rem; }
+@media (max-width: 480px) { .picker { grid-template-columns: repeat(2, minmax(0, 1fr)); } header h1 { font-size: 1.6rem; } }
+@media (prefers-reduced-motion: no-preference) { .rule, .slot { transition: border-color 0.15s ease; } }
+</style>
+</head><body>
+<div class="wrap">
+  <header>
+    <div class="head-row">
+      <h1 data-i18n>Classic HC Group Builder</h1>
+      <div class="seg lang" role="group" aria-label="Language" id="lang">
+        <button type="button" data-lang="en" aria-pressed="true">EN</button>
+        <button type="button" data-lang="de" aria-pressed="false">DE</button>
+      </div>
+    </div>
+    <p class="sub" data-i18n>Classic Hardcore, patch 1.15.9: original 1.12 classes and talents, all content phases open. Paladins are Alliance only, Shamans Horde only.</p>
+  </header>
+
+  <div class="cols">
+    <section class="panel" aria-labelledby="party-h">
+      <div class="summary">
+        <h2 id="party-h" data-i18n>Party</h2>
+        <button type="button" class="remove" id="clear-all" data-i18n>Remove all</button>
+      </div>
+      <div class="faction-row">
+        <p class="label" data-i18n>Faction</p>
+        <div class="seg" role="group" aria-label="Faction" id="faction">
+          <button type="button" data-faction="alliance" aria-pressed="true" data-i18n>Alliance</button>
+          <button type="button" data-faction="horde" aria-pressed="false" data-i18n>Horde</button>
+        </div>
+      </div>
+      <div>
+        <p class="label" data-i18n>Add a class</p>
+        <div class="picker" id="picker"></div>
+      </div>
+      <div class="slots" id="slots"></div>
+    </section>
+
+    <section class="panel" aria-labelledby="rules-h">
+      <div class="summary">
+        <h2 id="rules-h" data-i18n>Minimum rules</h2>
+      </div>
+      <div class="rules" id="rules"></div>
+      <div class="rule" id="buffs" data-state="ok"></div>
+      <div class="rule" id="items" data-state="ok"></div>
+    </section>
+  </div>
+</div>
+
+<script>
+/* Classic Hardcore (Classic Era 1.15.9, July 2026). Classes, talents and spells are the 1.12 originals; the only class change since is
+   Druids learning Polearms (1.15.3). Paladins are Alliance only and Shamans Horde only, so they never share a group. */
+const CLASSES = {
+  warrior: { name: "Warrior", roles: ["tank", "dps"] },
+  paladin: { name: "Paladin", roles: ["tank", "heal", "dps"], faction: "alliance" },
+  hunter:  { name: "Hunter",  roles: ["dps"] },
+  rogue:   { name: "Rogue",   roles: ["dps"] },
+  priest:  { name: "Priest",  roles: ["heal", "dps"] },
+  shaman:  { name: "Shaman",  roles: ["heal", "dps"], faction: "horde" },
+  mage:    { name: "Mage",    roles: ["dps"] },
+  warlock: { name: "Warlock", roles: ["dps"] },
+  druid:   { name: "Druid",   roles: ["tank", "heal", "dps"] }
+};
+const FACTIONS = { alliance: "Alliance", horde: "Horde" };
+const ROLE_LABEL = { tank: "Tank", heal: "Healer", dps: "DPS" };
+/* Flo, 2026-10-22: a Warlock's Spell Lock always counts as an interrupt (a Bear's Feral Charge doesn't, so it isn't listed). */
+const SPELL_LOCK_COUNTS = true;
+/* Specs only where they change what the group gets. A DPS Priest is always Shadow; a Paladin's spec follows its role
+   (tank = Protection, heal = Holy, DPS = Retribution). */
+const SPECS = {
+  druid:  { balance: "Balance", feral: "Feral (Cat)" },
+  priest: { discipline: "Discipline", holy: "Holy" },
+  hunter: { bm: "Beast Mastery", mm: "Marksmanship", sv: "Survival" },
+  mage:   { frost: "Frost", fire: "Fire", arcane: "Arcane" }
+};
+const SPEC_DEFAULT = { druid: "balance", priest: "discipline", hunter: "bm", mage: "frost" };
+/* Fear Ward is a Dwarf Priest racial in Classic, so an Alliance Priest picks a race. Horde Priest racials don't help the group. */
+const PRIEST_RACES = { dwarf: "Dwarf", human: "Human", nightelf: "Night Elf" };
+
+/* Raid buffs and utility. "from" lists who would bring a missing one; entries naming a Paladin or Dwarf are Alliance only,
+   entries naming a Shaman Horde only (see sideOf), so a chip says when the other faction would be needed. Classic ranks at 60. */
+const BUFF_GROUPS = [
+  ["Stats", [
+    { key: "stamina",   name: "Stamina +54",                  from: ["Priest"] },
+    { key: "bloodpact", name: "Blood Pact +42 Stamina",       from: ["Warlock"] },
+    { key: "int",       name: "Intellect +31",                from: ["Mage"] },
+    { key: "spirit",    name: "Divine Spirit +40 Spirit",     from: ["Discipline Priest"] },
+    { key: "motw",      name: "Mark of the Wild",             from: ["Druid"] },
+    { key: "kings",     name: "Blessing of Kings +10% stats", from: ["Holy or Protection Paladin"] }
+  ]],
+  ["Physical damage", [
+    { key: "battleshout", name: "Battle Shout",                       from: ["Warrior"] },
+    { key: "might",       name: "Blessing of Might",                  from: ["Paladin"] },
+    { key: "soe",         name: "Strength of Earth Totem",            from: ["Shaman"] },
+    { key: "goa",         name: "Grace of Air Totem",                 from: ["Shaman"] },
+    { key: "wf",          name: "Windfury Totem",                     from: ["Shaman"] },
+    { key: "ft",          name: "Flametongue Totem (not with Windfury)", from: ["Shaman"] },
+    { key: "trueshot",    name: "Trueshot Aura (attack power)",       from: ["Marksmanship Hunter"] },
+    { key: "lotp",        name: "Leader of the Pack +3% melee/ranged crit", from: ["Feral or Bear Druid"] },
+    { key: "sunder",      name: "Sunder Armor",                       from: ["Warrior"] },
+    { key: "expose",      name: "Expose Armor",                       from: ["Rogue"] },
+    { key: "faeriefire",  name: "Faerie Fire",                        from: ["Druid"] },
+    { key: "cor",         name: "Curse of Recklessness",              from: ["Warlock"] }
+  ]],
+  ["Spells, healing and mana", [
+    { key: "moonkin",       name: "Moonkin Aura +3% spell crit",  from: ["Balance Druid"] },
+    { key: "coe",           name: "Curse of the Elements (Fire, Frost)", from: ["Warlock"] },
+    { key: "cos",           name: "Curse of Shadow (Shadow, Arcane)",    from: ["Warlock"] },
+    { key: "weaving",       name: "Shadow Weaving +15% Shadow damage taken", from: ["Shadow Priest"] },
+    { key: "scorch",        name: "Improved Scorch +15% Fire damage taken",  from: ["Fire Mage"] },
+    { key: "sanctity",      name: "Sanctity Aura +10% Holy damage", from: ["Retribution Paladin"] },
+    { key: "ve",            name: "Vampiric Embrace",             from: ["Shadow Priest"] },
+    { key: "pi",            name: "Power Infusion +20% spell damage/healing", from: ["Discipline Priest"] },
+    { key: "wisdom",        name: "Blessing of Wisdom",           from: ["Paladin"] },
+    { key: "manaspring",    name: "Mana Spring Totem",            from: ["Shaman"] },
+    { key: "healingstream", name: "Healing Stream Totem",         from: ["Shaman"] },
+    { key: "thorns",        name: "Thorns",                       from: ["Druid"] }
+  ]],
+  ["Defense and resistances", [
+    { key: "devotion",  name: "Devotion Aura",          from: ["Paladin"] },
+    { key: "sanctuary", name: "Blessing of Sanctuary",  from: ["Protection Paladin"] },
+    { key: "shadowres", name: "Shadow +60", from: ["Priest", "Paladin"] },
+    { key: "fireres",   name: "Fire +60",   from: ["Paladin", "Shaman"] },
+    { key: "frostres",  name: "Frost +60",  from: ["Paladin", "Shaman"] },
+    { key: "natureres", name: "Nature +60", from: ["Hunter", "Shaman"] }
+  ]],
+  ["Utility", [
+    { key: "salvation",   name: "Blessing of Salvation (-30% threat)", from: ["Paladin"] },
+    { key: "tranquil",    name: "Tranquil Air Totem (-20% threat)",    from: ["Shaman"] },
+    { key: "water",       name: "Conjured water and food",      from: ["Mage"] },
+    { key: "healthstone", name: "Healthstones",                 from: ["Warlock"] },
+    { key: "summon",      name: "Summoning",                    from: ["Warlock"] },
+    { key: "mana",        name: "Mana cooldown for the healer", from: ["Druid (Innervate)", "Restoration Shaman (Mana Tide Totem)"] },
+    { key: "enrage",      name: "Enrage removal",               from: ["Hunter (Tranquilizing Shot, Molten Core book)"] },
+    { key: "lockpick",    name: "Lockpicking",                  from: ["Rogue"] }
+  ]]
+];
+
+/* Item types someone in the party uses at 60. Flo, 2026-10-23: green when 1 person needs it, amber for 2-3, red for 4-5.
+   Classic 1.12 weapon skills, plus Druid Polearms (1.15.3). Unlike Forever, Rogues can't learn One-Handed Axes.
+   Armor counts only the type a class wears at 60, so a Warrior needs Plate but not Leather. */
+const ITEM_GROUPS = [
+  ["Armor", [
+    ["Cloth",   "priest mage warlock"],
+    ["Leather", "rogue druid"],
+    ["Mail",    "hunter shaman"],
+    ["Plate",   "warrior paladin"]
+  ]],
+  ["One-handed weapons", [
+    ["Dagger",           "warrior hunter rogue priest shaman mage warlock druid"],
+    ["Fist Weapon",      "warrior hunter rogue shaman druid"],
+    ["One-Handed Axe",   "warrior paladin hunter shaman"],
+    ["One-Handed Mace",  "warrior paladin rogue priest shaman druid"],
+    ["One-Handed Sword", "warrior paladin hunter rogue mage warlock"]
+  ]],
+  ["Two-handed weapons", [
+    ["Two-Handed Axe",   "warrior paladin hunter shaman"],
+    ["Two-Handed Mace",  "warrior paladin shaman druid"],
+    ["Two-Handed Sword", "warrior paladin hunter"],
+    ["Polearm",          "warrior paladin hunter druid"],
+    ["Staff",            "warrior hunter priest shaman mage warlock druid"]
+  ]],
+  ["Ranged weapons", [
+    ["Bow",      "warrior hunter rogue"],
+    ["Crossbow", "warrior hunter rogue"],
+    ["Gun",      "warrior hunter rogue"],
+    ["Thrown",   "warrior hunter rogue"],
+    ["Wand",     "priest mage warlock"]
+  ]],
+  ["Shields and relics", [
+    ["Shield", "warrior paladin shaman"],
+    ["Libram", "paladin"],
+    ["Idol",   "druid"],
+    ["Totem",  "shaman"]
+  ]]
+];
+
+/* Buffs that share a slot. Each Shaman drops one totem per element; each Warlock keeps one Curse on a target.
+   Aspect of the Wild replaces the Hunter's own Aspect of the Hawk, so it always costs something.
+   Flo, 2026-10-23: a player holds one Blessing from each Paladin. Everyone needs two, so one Paladin leaves the blessings amber and two cover them.
+   In Classic Salvation and Sanctuary are Blessings too, so they compete for the same slot. Auras swap freely (Flo, 2026-10-22). */
+const FAMILIES = {
+  earth:    { cls: "shaman",  note: "one Earth totem per Shaman" },
+  air:      { cls: "shaman",  note: "one Air totem per Shaman" },
+  fire:     { cls: "shaman",  note: "one Fire totem per Shaman" },
+  water:    { cls: "shaman",  note: "one Water totem per Shaman" },
+  curse:    { cls: "warlock", note: "one Curse per Warlock on each target" },
+  aspect:   { cls: null,      note: "replaces the Hunter's Aspect of the Hawk" },
+  blessing: { cls: "paladin", note: "one Blessing per Paladin on each player", needs: 2 }
+};
+
+/* English/German switch. Every visible string goes through t(), and DE is keyed by the English text.
+   German spell names are the ones from the German Classic client. */
+const DE = {
+  // Page
+  "Classic HC Group Builder": "Classic-HC-Gruppenplaner",
+  "Classic Hardcore, patch 1.15.9: original 1.12 classes and talents, all content phases open. Paladins are Alliance only, Shamans Horde only.":
+    "Classic Hardcore, Patch 1.15.9: Klassen und Talente wie im Original 1.12, alle Inhaltsphasen offen. Paladine gibt es nur bei der Allianz, Schamanen nur bei der Horde.",
+  "Language": "Sprache",
+  "Party": "Gruppe",
+  "Faction": "Fraktion", "Alliance": "Allianz", "Horde": "Horde",
+  "{side} only": "nur {side}",
+  "{side} only: {who}": "nur {side}: {who}",
+  "Remove all": "Alle entfernen",
+  "Add a class": "Klasse hinzufügen",
+  "Minimum rules": "Mindestregeln",
+  "Empty slot": "Leerer Platz",
+  "Remove": "Entfernen",
+  "Add {cls}": "{cls} hinzufügen",
+  "Role for slot {n}": "Rolle für Platz {n}",
+  "Spec for slot {n}": "Spezialisierung für Platz {n}",
+  "Race for slot {n}": "Volk für Platz {n}",
+  "Remove {cls} from slot {n}": "{cls} von Platz {n} entfernen",
+  "Met": "Erfüllt",
+  "Partly": "Teilweise",
+  "Not met": "Nicht erfüllt",
+  "{have} of {total}": "{have} von {total}",
+  "or": "oder",
+  "No {x}": "Kein {x}",
+  "only {x}": "nur {x}",
+  // Classes, roles, specs, races
+  "Warrior": "Krieger", "Paladin": "Paladin", "Hunter": "Jäger", "Rogue": "Schurke", "Priest": "Priester",
+  "Shaman": "Schamane", "Mage": "Magier", "Warlock": "Hexenmeister", "Druid": "Druide",
+  "Tank": "Tank", "Healer": "Heiler", "DPS": "DPS",
+  "Balance": "Gleichgewicht", "Feral (Cat)": "Wilder Kampf (Katze)", "Discipline": "Disziplin", "Holy": "Heilig",
+  "Beast Mastery": "Tierherrschaft", "Marksmanship": "Treffsicherheit", "Survival": "Überleben",
+  "Frost": "Frost", "Fire": "Feuer", "Arcane": "Arkan",
+  "Dwarf": "Zwerg", "Human": "Mensch", "Night Elf": "Nachtelf",
+  // Who could cover a missing rule
+  "Felhunter": "Teufelsjäger", "Succubus": "Sukkubus", "Druid (not Bear)": "Druide (nicht Bär)",
+  "Shadow Priest": "Schattenpriester", "Dwarf Priest": "Zwergenpriester",
+  // Debuff and creature types
+  "Magic": "Magie", "Curse": "Fluch", "Poison": "Gift", "Disease": "Krankheit",
+  "Humanoid": "Humanoid", "Beast": "Wildtier", "Undead": "Untoter", "Demon": "Dämon", "Elemental": "Elementar", "Dragonkin": "Drachkin",
+  // Rules
+  "Group shape": "Gruppenaufbau",
+  "Tanks": "Tanks", "Healers": "Heiler", "Players": "Spieler",
+  "Remove every debuff type": "Jeden Debuff-Typ entfernen",
+  "At least 2 interrupts that always work": "Mindestens 2 Unterbrechungen, die immer funktionieren",
+  "Not counted": "Zählt nicht",
+  "Purge a magic buff from an enemy": "Magischen Buff vom Gegner entfernen",
+  "Reliable crowd control for each creature type": "Verlässliche Kontrolle für jeden Kreaturentyp",
+  "Fear protection": "Schutz vor Furcht",
+  "Polymorph": "Verwandlung",
+  // Raid buffs
+  "Raid buffs and utility": "Raid-Buffs und Nützliches",
+  "Stats": "Werte",
+  "Stamina +54": "Ausdauer +54",
+  "Blood Pact +42 Stamina": "Blutpakt +42 Ausdauer",
+  "Intellect +31": "Intelligenz +31",
+  "Divine Spirit +40 Spirit": "Göttlicher Willen +40 Willenskraft",
+  "Mark of the Wild": "Mal der Wildnis",
+  "Blessing of Kings +10% stats": "Segen der Könige +10 % Werte",
+  "Physical damage": "Körperlicher Schaden",
+  "Battle Shout": "Schlachtruf",
+  "Blessing of Might": "Segen der Macht",
+  "Strength of Earth Totem": "Totem der Erdstärke",
+  "Grace of Air Totem": "Totem der luftgleichen Anmut",
+  "Windfury Totem": "Totem des Windzorns",
+  "Flametongue Totem (not with Windfury)": "Totem der Flammenzunge (nicht mit Windzorn)",
+  "Trueshot Aura (attack power)": "Aura des Volltreffers (Angriffskraft)",
+  "Leader of the Pack +3% melee/ranged crit": "Rudelführer +3 % Nah-/Fernkampf-Krit",
+  "Spells, healing and mana": "Zauber, Heilung und Mana",
+  "Moonkin Aura +3% spell crit": "Mondkin-Aura +3 % Zauberkrit",
+  "Curse of the Elements (Fire, Frost)": "Fluch der Elemente (Feuer, Frost)",
+  "Curse of Shadow (Shadow, Arcane)": "Schattenfluch (Schatten, Arkan)",
+  "Shadow Weaving +15% Shadow damage taken": "Schattenwirken +15 % erlittener Schattenschaden",
+  "Improved Scorch +15% Fire damage taken": "Verbessertes Versengen +15 % erlittener Feuerschaden",
+  "Sanctity Aura +10% Holy damage": "Aura der Heiligkeit +10 % Heiligschaden",
+  "Vampiric Embrace": "Vampirumarmung",
+  "Power Infusion +20% spell damage/healing": "Seele der Macht +20 % Zauberschaden/Heilung",
+  "Blessing of Wisdom": "Segen der Weisheit",
+  "Mana Spring Totem": "Totem der Manaquelle",
+  "Healing Stream Totem": "Totem des heilenden Flusses",
+  "Thorns": "Dornen",
+  "Defense and resistances": "Verteidigung und Widerstände",
+  "Devotion Aura": "Aura der Hingabe",
+  "Blessing of Sanctuary": "Segen des Refugiums",
+  "Shadow +60": "Schatten +60", "Fire +60": "Feuer +60", "Frost +60": "Frost +60", "Nature +60": "Natur +60",
+  "Utility": "Nützliches",
+  "Blessing of Salvation (-30% threat)": "Segen der Rettung (-30 % Bedrohung)",
+  "Tranquil Air Totem (-20% threat)": "Totem der beruhigenden Winde (-20 % Bedrohung)",
+  "Conjured water and food": "Herbeigezaubertes Wasser und Essen",
+  "Healthstones": "Gesundheitssteine",
+  "Summoning": "Beschwören",
+  "Mana cooldown for the healer": "Mana-Cooldown für den Heiler",
+  "Enrage removal": "Wutanfall entfernen",
+  "Lockpicking": "Schlossknacken",
+  // Who would bring a missing buff
+  "Discipline Priest": "Priester (Disziplin)",
+  "Holy or Protection Paladin": "Paladin (Heilig oder Schutz)",
+  "Protection Paladin": "Paladin (Schutz)",
+  "Retribution Paladin": "Paladin (Vergeltung)",
+  "Marksmanship Hunter": "Jäger (Treffsicherheit)",
+  "Feral or Bear Druid": "Druide (Wilder Kampf oder Bär)",
+  "Balance Druid": "Druide (Gleichgewicht)",
+  "Fire Mage": "Magier (Feuer)",
+  "Druid (Innervate)": "Druide (Anregen)",
+  "Restoration Shaman (Mana Tide Totem)": "Wiederherstellungs-Schamane (Totem der Manaflut)",
+  "Hunter (Tranquilizing Shot, Molten Core book)": "Jäger (Einlullender Schuss, Buch aus dem Geschmolzenen Kern)",
+  "one Earth totem per Shaman": "ein Erdtotem pro Schamane",
+  "one Air totem per Shaman": "ein Lufttotem pro Schamane",
+  "one Fire totem per Shaman": "ein Feuertotem pro Schamane",
+  "one Water totem per Shaman": "ein Wassertotem pro Schamane",
+  "one Curse per Warlock on each target": "ein Fluch pro Hexenmeister auf jedem Ziel",
+  "one Blessing per Paladin on each player": "ein Segen pro Paladin auf jedem Spieler",
+  "replaces the Hunter's Aspect of the Hawk": "ersetzt den Aspekt des Falken des Jägers",
+  // Item types
+  "Item types": "Gegenstandstypen",
+  "{have} of {total} needed": "{have} von {total} gebraucht",
+  "all but {x}": "alle außer {x}",
+  "Armor": "Rüstung", "Cloth": "Stoff", "Leather": "Leder", "Mail": "Kette", "Plate": "Platte",
+  "One-handed weapons": "Einhandwaffen", "Dagger": "Dolch", "Fist Weapon": "Faustwaffe",
+  "One-Handed Axe": "Einhandaxt", "One-Handed Mace": "Einhandstreitkolben", "One-Handed Sword": "Einhandschwert",
+  "Two-handed weapons": "Zweihandwaffen", "Two-Handed Axe": "Zweihandaxt", "Two-Handed Mace": "Zweihandstreitkolben",
+  "Two-Handed Sword": "Zweihandschwert", "Polearm": "Stangenwaffe", "Staff": "Stab",
+  "Ranged weapons": "Fernkampfwaffen", "Bow": "Bogen", "Crossbow": "Armbrust", "Gun": "Schusswaffe", "Thrown": "Wurfwaffe", "Wand": "Zauberstab",
+  "Shields and relics": "Schilde und Relikte", "Shield": "Schild", "Libram": "Buchband", "Idol": "Götze", "Totem": "Totem",
+  // Spells in each class kit
+  "Shield Bash": "Schildhieb", "Pummel": "Zuschlagen",
+  "Shield Slam (Protection talent, 50% chance)": "Schildschlag (Schutz-Talent, 50 % Chance)",
+  "Sunder Armor": "Rüstung zerreißen",
+  "Cleanse": "Läutern", "Repentance": "Buße",
+  "Blessing of Kings": "Segen der Könige", "Blessing of Salvation": "Segen der Rettung",
+  "Sanctity Aura, Retribution talent": "Aura der Heiligkeit, Talent (Vergeltung)",
+  "Blessing of Kings, Protection talent": "Segen der Könige, Talent (Schutz)",
+  "Blessing of Sanctuary, Protection talent": "Segen des Refugiums, Talent (Schutz)",
+  "Shadow Resistance Aura": "Aura des Schattenwiderstands", "Fire Resistance Aura": "Aura des Feuerwiderstands", "Frost Resistance Aura": "Aura des Frostwiderstands",
+  "Freezing Trap (out of combat)": "Eiskältefalle (außerhalb des Kampfes)", "Aspect of the Wild": "Aspekt der Wildnis", "Tranquilizing Shot": "Einlullender Schuss",
+  "Trueshot Aura, Marksmanship talent": "Aura des Volltreffers, Talent (Treffsicherheit)",
+  "Kick": "Tritt", "Sap": "Kopfnuss", "Blind": "Blenden", "Expose Armor": "Rüstung schwächen", "Pick Lock": "Schloss knacken",
+  "Dispel Magic": "Magiebannung", "Cure Disease": "Krankheit heilen", "Shackle Undead": "Untote fesseln", "Fear Ward (Dwarf)": "Furchtzauberschutz (Zwerg)",
+  "Silence (Shadow)": "Stille (Schatten)",
+  "Shadow Weaving, Shadow talent": "Schattenwirken, Schatten-Talent",
+  "Vampiric Embrace, Shadow talent": "Vampirumarmung, Schatten-Talent",
+  "Divine Spirit, Discipline talent": "Göttlicher Willen, Talent (Disziplin)",
+  "Power Infusion, Discipline talent": "Seele der Macht, Talent (Disziplin)",
+  "Prayer of Fortitude": "Gebet der Seelenstärke", "Prayer of Shadow Protection": "Gebet des Schattenschutzes",
+  "Cure Poison": "Vergiftung heilen", "Earth Shock": "Erdschock", "Tremor Totem (uses the Earth totem)": "Totem des Erdstoßes (belegt das Erdtotem)", "Purge": "Reinigen",
+  "Nature Resistance Totem": "Totem des Naturwiderstands", "Flametongue Totem": "Totem der Flammenzunge",
+  "Frost Resistance Totem": "Totem des Frostwiderstands", "Fire Resistance Totem": "Totem des Feuerwiderstands",
+  "Tranquil Air Totem": "Totem der beruhigenden Winde",
+  "Mana Tide Totem": "Totem der Manaflut",
+  "Remove Lesser Curse": "Geringen Fluch aufheben", "Counterspell": "Gegenzauber", "Arcane Brilliance": "Arkane Brillanz", "Conjure Water": "Wasser herbeizaubern",
+  "Improved Scorch, Fire talent": "Verbessertes Versengen, Talent (Feuer)",
+  "Banish": "Verbannen", "Devour Magic (Felhunter)": "Magie verschlingen (Teufelsjäger)", "Spell Lock (Felhunter)": "Zaubersperre (Teufelsjäger)",
+  "Seduction (Succubus)": "Verführung (Sukkubus)", "Imp": "Wichtel", "Create Healthstone": "Gesundheitsstein herstellen",
+  "Ritual of Summoning": "Ritual der Beschwörung", "Curse of Recklessness": "Fluch der Tollkühnheit",
+  "Curse of the Elements": "Fluch der Elemente", "Curse of Shadow": "Schattenfluch",
+  "Remove Curse": "Fluch aufheben", "Abolish Poison": "Vergiftung aufheben", "Hibernate": "Winterschlaf",
+  "Gift of the Wild": "Gabe der Wildnis",
+  "Leader of the Pack, Feral talent": "Rudelführer, Talent (Wilder Kampf)",
+  "Moonkin Aura, Balance talent": "Mondkin-Aura, Talent (Gleichgewicht)",
+  "Innervate": "Anregen", "Faerie Fire": "Feenfeuer"
+};
+let LANG = "en";
+const i18nMissing = new Set();
+function t(en, vars) {
+  let s = en;
+  if (LANG === "de") { if (en in DE) s = DE[en]; else i18nMissing.add(en); }
+  return vars ? s.replace(/\{(\w+)\}/g, (_, k) => vars[k]) : s;
+}
+
+let faction = "alliance";
+let party = [];
+let nextId = 1;
+
+function member(cls, role, spec) {
+  return { id: nextId++, cls, role, spec: spec || SPEC_DEFAULT[cls] || null, race: cls === "priest" ? "dwarf" : null };
+}
+
+function defaultRole(cls) {
+  const roles = CLASSES[cls].roles;
+  const hasTank = party.some(m => m.role === "tank");
+  const hasHeal = party.some(m => m.role === "heal");
+  if (!hasTank && roles.includes("tank")) return "tank";
+  if (!hasHeal && roles.includes("heal")) return "heal";
+  return roles.includes("dps") ? "dps" : roles[0];
+}
+
+const allowed = cls => !CLASSES[cls].faction || CLASSES[cls].faction === faction;
+/* Who-could-cover labels that need a Paladin or a Dwarf are Alliance only; a Shaman is Horde only. */
+const sideOf = label => /Paladin|Dwarf/.test(label) ? "alliance" : /Shaman/.test(label) ? "horde" : null;
+const joinOr = list => list.length > 1 ? `${list.slice(0, -1).join(", ")} ${t("or")} ${list[list.length - 1]}` : list.join("");
+/* "No Priest, Paladin or Felhunter", leaving out whoever the current faction can't have. */
+const needText = list => t("No {x}", { x: joinOr(list.filter(l => !sideOf(l) || sideOf(l) === faction).map(l => t(l))) });
+function fromText(list) {
+  const here = list.filter(l => !sideOf(l) || sideOf(l) === faction);
+  if (here.length) return here.map(l => t(l)).join(", ");
+  const other = faction === "alliance" ? "horde" : "alliance";
+  return t("{side} only: {who}", { side: t(FACTIONS[other]), who: list.map(l => t(l)).join(", ") });
+}
+
+/* What one party member brings. Each entry names the spell (in English; evaluate() translates) so the ledger can say who covers what.
+ */
+function kit(m) {
+  const k = { dispel: {}, interrupt: [], interruptExtra: [], cc: {}, ccPartial: {}, ccSuccubus: {}, ccFallback: [], fear: [], purge: [], purgeFallback: [], buffs: [] };
+  const add = (obj, key, val) => { (obj[key] = obj[key] || []).push(val); };
+  const buff = (key, spell, family) => k.buffs.push([key, spell, family || null]);
+  const bear = m.cls === "druid" && m.role === "tank";
+  switch (m.cls) {
+    case "warrior":
+      k.interrupt.push(m.role === "tank" ? "Shield Bash" : "Pummel");
+      if (m.role === "tank") k.purgeFallback.push("Shield Slam (Protection talent, 50% chance)");
+      buff("battleshout", "Battle Shout");
+      buff("sunder", "Sunder Armor");
+      break;
+    case "paladin":
+      ["magic", "poison", "disease"].forEach(type => add(k.dispel, type, "Cleanse"));
+      /* Kings is a Protection talent: Holy builds usually reach it (e.g. 31/20/0), Retribution builds usually don't. */
+      if (m.role !== "dps") buff("kings", "Blessing of Kings, Protection talent", "blessing");
+      if (m.role === "tank") buff("sanctuary", "Blessing of Sanctuary, Protection talent", "blessing");
+      if (m.role === "dps") {
+        add(k.ccPartial, "humanoid", "Repentance");
+        buff("sanctity", "Sanctity Aura, Retribution talent");
+      }
+      buff("might", "Blessing of Might", "blessing");
+      buff("wisdom", "Blessing of Wisdom", "blessing");
+      buff("salvation", "Blessing of Salvation", "blessing");
+      buff("devotion", "Devotion Aura");
+      buff("shadowres", "Shadow Resistance Aura");
+      buff("fireres", "Fire Resistance Aura");
+      buff("frostres", "Frost Resistance Aura");
+      break;
+    case "hunter":
+      k.ccFallback.push("Freezing Trap (out of combat)");
+      buff("natureres", "Aspect of the Wild", "aspect");
+      buff("enrage", "Tranquilizing Shot");
+      if (m.spec === "mm") buff("trueshot", "Trueshot Aura, Marksmanship talent");
+      break;
+    case "rogue":
+      k.interrupt.push("Kick");
+      add(k.ccPartial, "humanoid", "Sap");
+      k.ccFallback.push("Blind");
+      buff("expose", "Expose Armor");
+      buff("lockpick", "Pick Lock");
+      break;
+    case "priest":
+      add(k.dispel, "magic", "Dispel Magic");
+      add(k.dispel, "disease", "Cure Disease");
+      add(k.cc, "undead", "Shackle Undead");
+      if (faction === "alliance" && m.race === "dwarf") k.fear.push("Fear Ward (Dwarf)");
+      k.purge.push("Dispel Magic");
+      if (m.role === "dps") {
+        k.interrupt.push("Silence (Shadow)");
+        buff("weaving", "Shadow Weaving, Shadow talent");
+        buff("ve", "Vampiric Embrace, Shadow talent");
+      }
+      if (m.role === "heal" && m.spec === "discipline") {
+        buff("spirit", "Divine Spirit, Discipline talent");
+        buff("pi", "Power Infusion, Discipline talent");
+      }
+      buff("stamina", "Prayer of Fortitude");
+      buff("shadowres", "Prayer of Shadow Protection");
+      break;
+    case "shaman":
+      add(k.dispel, "poison", "Cure Poison");
+      add(k.dispel, "disease", "Cure Disease");
+      k.interrupt.push("Earth Shock");
+      k.fear.push("Tremor Totem (uses the Earth totem)");
+      k.purge.push("Purge");
+      buff("soe", "Strength of Earth Totem", "earth");
+      buff("goa", "Grace of Air Totem", "air");
+      buff("wf", "Windfury Totem", "air");
+      buff("natureres", "Nature Resistance Totem", "air");
+      buff("tranquil", "Tranquil Air Totem", "air");
+      buff("ft", "Flametongue Totem", "fire");
+      buff("frostres", "Frost Resistance Totem", "fire");
+      buff("manaspring", "Mana Spring Totem", "water");
+      buff("healingstream", "Healing Stream Totem", "water");
+      buff("fireres", "Fire Resistance Totem", "water");
+      if (m.role === "heal") buff("mana", "Mana Tide Totem");
+      break;
+    case "mage":
+      add(k.dispel, "curse", "Remove Lesser Curse");
+      k.interrupt.push("Counterspell");
+      add(k.cc, "humanoid", "Polymorph");
+      add(k.cc, "beast", "Polymorph");
+      buff("int", "Arcane Brilliance");
+      buff("water", "Conjure Water");
+      if (m.spec === "fire") buff("scorch", "Improved Scorch, Fire talent");
+      break;
+    case "warlock":
+      add(k.cc, "demon", "Banish");
+      add(k.cc, "elemental", "Banish");
+      add(k.dispel, "magic", "Devour Magic (Felhunter)");
+      (SPELL_LOCK_COUNTS ? k.interrupt : k.interruptExtra).push("Spell Lock (Felhunter)");
+      k.purge.push("Devour Magic (Felhunter)");
+      add(k.ccSuccubus, "humanoid", "Seduction (Succubus)");
+      buff("bloodpact", "Imp");
+      buff("healthstone", "Create Healthstone");
+      buff("summon", "Ritual of Summoning");
+      buff("cor", "Curse of Recklessness", "curse");
+      buff("coe", "Curse of the Elements", "curse");
+      buff("cos", "Curse of Shadow", "curse");
+      break;
+    case "druid":
+      /* Entangling Roots is outdoors only in Classic, so unlike Forever it is no dungeon fallback. */
+      if (!bear) {
+        add(k.dispel, "curse", "Remove Curse");
+        add(k.dispel, "poison", "Abolish Poison");
+        add(k.cc, "beast", "Hibernate");
+        add(k.cc, "dragonkin", "Hibernate");
+      }
+      buff("motw", "Gift of the Wild");
+      buff("thorns", "Thorns");
+      if (bear || (m.role === "dps" && m.spec === "feral")) buff("lotp", "Leader of the Pack, Feral talent");
+      if (m.role === "dps" && m.spec === "balance") buff("moonkin", "Moonkin Aura, Balance talent");
+      buff("mana", "Innervate");
+      buff("faeriefire", "Faerie Fire");
+      break;
+  }
+  return k;
+}
+
+/* The third entry names who would cover a type nobody in the party covers; it mirrors kit(). */
+const DEBUFFS = [
+  ["magic", "Magic", ["Priest", "Paladin", "Felhunter"]],
+  ["curse", "Curse", ["Mage", "Druid (not Bear)"]],
+  ["poison", "Poison", ["Paladin", "Shaman", "Druid (not Bear)"]],
+  ["disease", "Disease", ["Paladin", "Priest", "Shaman"]]
+];
+const CREATURES = [
+  ["humanoid", "Humanoid", ["Mage", "Succubus"]],
+  ["beast", "Beast", ["Mage", "Druid (not Bear)"]],
+  ["undead", "Undead", ["Priest"]],
+  ["demon", "Demon", ["Warlock"]],
+  ["elemental", "Elemental", ["Warlock"]],
+  ["dragonkin", "Dragonkin", ["Druid (not Bear)"]]
+];
+
+/* A buff is green when nothing else competes for its slot, amber when it shares a slot with more buffs than there are Shamans (totems),
+   Warlocks (curses) or Paladins (blessings). "needs" caps how many buffs of a family one player wants at once. */
+function evaluateBuffs(providers) {
+  const slots = f => FAMILIES[f].cls ? party.filter(m => m.cls === FAMILIES[f].cls).length : 0;
+  const limited = {};
+  for (const key in providers) {
+    if (providers[key].some(p => !p.family)) continue;
+    providers[key].forEach(p => (limited[p.family] = limited[p.family] || new Set()).add(key));
+  }
+  let have = 0, total = 0;
+  const groups = BUFF_GROUPS.map(([title, list]) => ({ title: t(title), chips: list.map(b => {
+    total++;
+    const name = t(b.name);
+    const ps = providers[b.key];
+    if (!ps) return { state: "none", text: `<b>${name}</b> ${fromText(b.from)}` };
+    have++;
+    const who = [...new Set(ps.map(p => name.startsWith(p.spell) ? p.cls : `${p.cls} (${p.spell})`))].join(", ");
+    if (ps.some(p => !p.family)) return { state: "ok", text: `<b>${name}</b> ${who}` };
+    const fams = [...new Set(ps.map(p => p.family))];
+    if (fams.some(f => Math.min(limited[f].size, FAMILIES[f].needs || Infinity) <= slots(f))) return { state: "ok", text: `<b>${name}</b> ${who}` };
+    return { state: "part", text: `<b>${name}</b> ${who} · ${fams.map(f => t(FAMILIES[f].note)).join(` ${t("or")} `)}` };
+  }) }));
+  return { groups, have, total };
+}
+
+/* A grey item type names the classes that would use it, like a missing buff; "all but" keeps the long lists short.
+   Only classes the current faction can play are named. */
+function evaluateItems() {
+  const all = Object.keys(CLASSES).filter(allowed);
+  const names = list => list.map(c => t(CLASSES[c].name)).join(", ");
+  let have = 0, total = 0;
+  const groups = ITEM_GROUPS.map(([title, list]) => ({ title: t(title), chips: list.map(([name, classes]) => {
+    total++;
+    const users = party.filter(m => classes.split(" ").includes(m.cls));
+    if (!users.length) {
+      const can = all.filter(c => classes.split(" ").includes(c));
+      const who = !can.length ? t("{side} only", { side: t(FACTIONS[faction === "alliance" ? "horde" : "alliance"]) })
+        : can.length > 6 ? t("all but {x}", { x: names(all.filter(c => !can.includes(c))) }) : names(can);
+      return { state: "none", text: `<b>${t(name)}</b> ${who}` };
+    }
+    have++;
+    const count = {};
+    users.forEach(m => (count[m.cls] = (count[m.cls] || 0) + 1));
+    const who = Object.entries(count).map(([cls, n]) => t(CLASSES[cls].name) + (n > 1 ? ` ×${n}` : ""));
+    const state = users.length === 1 ? "ok" : users.length <= 3 ? "part" : "bad";
+    return { state, text: `<b>${t(name)}</b> ${who.join(", ")}` };
+  }) }));
+  return { groups, have, total };
+}
+
+function evaluate() {
+  const tag = m => t(CLASSES[m.cls].name);
+  const dispel = {}, cc = {}, ccPartial = {}, ccSuccubus = [], interrupts = [], interruptExtra = [], fear = [], fallback = [], purge = [], purgeFallback = [], buffProviders = {};
+  party.forEach(m => {
+    const k = kit(m);
+    for (const type in k.dispel) k.dispel[type].forEach(s => (dispel[type] = dispel[type] || []).push(`${tag(m)}: ${t(s)}`));
+    for (const type in k.cc) k.cc[type].forEach(s => (cc[type] = cc[type] || []).push(`${tag(m)}: ${t(s)}`));
+    for (const type in k.ccPartial) k.ccPartial[type].forEach(s => (ccPartial[type] = ccPartial[type] || []).push(t(s)));
+    for (const type in k.ccSuccubus) k.ccSuccubus[type].forEach(s => ccSuccubus.push([type, tag(m), s]));
+    k.interrupt.forEach(s => interrupts.push(`${tag(m)}: ${t(s)}`));
+    k.interruptExtra.forEach(s => interruptExtra.push(`${tag(m)}: ${t(s)}`));
+    k.fear.forEach(s => fear.push(`${tag(m)}: ${t(s)}`));
+    k.ccFallback.forEach(s => fallback.push(t(s)));
+    k.purge.forEach(s => purge.push(`${tag(m)}: ${t(s)}`));
+    k.purgeFallback.forEach(s => purgeFallback.push(`${tag(m)}: ${t(s)}`));
+    k.buffs.forEach(([key, s, family]) => (buffProviders[key] = buffProviders[key] || []).push({ cls: tag(m), spell: t(s), family }));
+  });
+
+  const tanks = party.filter(m => m.role === "tank").length;
+  const heals = party.filter(m => m.role === "heal").length;
+  const rules = [];
+
+  rules.push({
+    title: t("Group shape"),
+    state: tanks >= 1 && heals >= 1 ? "ok" : "bad",
+    chips: [
+      { state: tanks >= 1 ? "ok" : "bad", text: `<b>${t("Tanks")}</b> ${tanks}` },
+      { state: heals >= 1 ? "ok" : "bad", text: `<b>${t("Healers")}</b> ${heals}` },
+      { state: party.length === 5 ? "ok" : party.length ? "part" : "bad", text: `<b>${t("Players")}</b> ${party.length} / 5` }
+    ]
+  });
+
+  const dChips = DEBUFFS.map(([type, n, need]) => ({ state: dispel[type] ? "ok" : "bad", text: `<b>${t(n)}</b> ${dispel[type] ? dispel[type].join(", ") : needText(need)}` }));
+  rules.push({ title: t("Remove every debuff type"),
+    state: dChips.every(c => c.state === "ok") ? "ok" : "bad", chips: dChips });
+
+  const iState = interrupts.length >= 2 ? "ok" : interrupts.length === 1 ? "part" : "bad";
+  const iChips = [{ state: iState, text: `<b>${interrupts.length}</b> ${interrupts.join(", ") || needText(["Warrior", "Rogue", "Mage", "Shaman", "Shadow Priest", "Felhunter"])}` }];
+  if (interruptExtra.length) iChips.push({ state: "none", text: `<b>${t("Not counted")}</b> ${interruptExtra.join(", ")}` });
+  rules.push({ title: t("At least 2 interrupts that always work"),
+    state: iState, chips: iChips });
+
+  const pState = purge.length ? "ok" : purgeFallback.length ? "part" : "bad";
+  rules.push({ title: t("Purge a magic buff from an enemy"),
+    state: pState, chips: [{ state: pState, text: purge.length ? purge.join(", ") : purgeFallback.length ? t("only {x}", { x: purgeFallback.join(", ") }) : needText(["Priest", "Shaman", "Felhunter"]) }] });
+
+  /* Flo, 2026-10-22: Seduction counts as full humanoid CC only if the group still has 2 interrupts while the Succubus (not the Felhunter) is out.
+     Sap (before the pull) and Repentance (1 min cooldown) only count as partial, like the fallbacks. */
+  const noSpellLock = party.flatMap(m => kit(m).interrupt).filter(s => !s.startsWith("Spell Lock")).length;
+  ccSuccubus.forEach(([type, who, s]) => noSpellLock >= 2
+    ? (cc[type] = cc[type] || []).push(`${who}: ${t(s)}`)
+    : (ccPartial[type] = ccPartial[type] || []).push(t(s)));
+  const cChips = CREATURES.map(([type, n, need]) => {
+    if (cc[type]) return { state: "ok", text: `<b>${t(n)}</b> ${[...new Set(cc[type])].join(", ")}` };
+    const fb = [...new Set([...(ccPartial[type] || []), ...fallback])];
+    if (fb.length) return { state: "part", text: `<b>${t(n)}</b> ${t("only {x}", { x: fb.join(" / ") })}` };
+    return { state: "bad", text: `<b>${t(n)}</b> ${needText(need)}` };
+  });
+  const cState = cChips.every(c => c.state === "ok") ? "ok" : cChips.some(c => c.state === "bad") ? "bad" : "part";
+  rules.push({ title: t("Reliable crowd control for each creature type"),
+    state: cState, chips: cChips });
+
+  /* Fear Ward is Dwarf only and Tremor Totem Horde only, so the Alliance needs a Dwarf Priest and the Horde a Shaman. */
+  rules.push({ title: t("Fear protection"),
+    state: fear.length ? "ok" : "bad", chips: [{ state: fear.length ? "ok" : "bad", text: fear.length ? fear.join(", ") : needText(["Dwarf Priest", "Shaman"]) }] });
+
+  return { rules, buffs: evaluateBuffs(buffProviders) };
+}
+
+function el(tag, attrs = {}, html) {
+  const e = document.createElement(tag);
+  for (const a in attrs) e.setAttribute(a, attrs[a]);
+  if (html !== undefined) e.innerHTML = html;
+  return e;
+}
+
+function renderPicker() {
+  const box = document.getElementById("picker");
+  box.innerHTML = "";
+  Object.entries(CLASSES).forEach(([key, c]) => {
+    const b = el("button", { type: "button", class: "cls", id: `add-${key}` });
+    b.innerHTML = `<span class="swatch" style="background: var(--c-${key})"></span>${t(c.name)}`;
+    b.disabled = party.length >= 5 || !allowed(key);
+    b.setAttribute("aria-label", t("Add {cls}", { cls: t(c.name) }));
+    b.addEventListener("click", () => { if (party.length < 5 && allowed(key)) { party.push(member(key, defaultRole(key))); render(); } });
+    box.appendChild(b);
+  });
+}
+
+function select(id, label, options, value, onChange) {
+  const s = el("select", { id, "aria-label": label });
+  Object.entries(options).forEach(([v, n]) => { const o = el("option", { value: v }, t(n)); if (value === v) o.selected = true; s.appendChild(o); });
+  s.addEventListener("change", () => onChange(s.value));
+  return s;
+}
+
+/* A spec picker shows only where the spec changes what the group gets. */
+const showsSpec = m => (m.cls === "druid" && m.role === "dps") || (m.cls === "priest" && m.role === "heal") || m.cls === "hunter" || m.cls === "mage";
+
+function renderSlots() {
+  const box = document.getElementById("slots");
+  box.innerHTML = "";
+  for (let i = 0; i < 5; i++) {
+    const m = party[i];
+    if (!m) {
+      box.appendChild(el("div", { class: "slot empty" }, `<span class="num">${i + 1}</span><span>${t("Empty slot")}</span><span></span>`));
+      continue;
+    }
+    const c = CLASSES[m.cls];
+    const slot = el("div", { class: "slot" });
+    slot.appendChild(el("span", { class: "num" }, String(i + 1)));
+    const who = el("div", { class: "who" });
+    who.appendChild(el("div", { class: "name" }, `<span class="swatch" style="background: var(--c-${m.cls})"></span>${t(c.name)}`));
+    const ctrls = el("div", { class: "ctrls" });
+    if (c.roles.length > 1) {
+      const seg = el("div", { class: "seg", role: "group", "aria-label": t("Role for slot {n}", { n: i + 1 }) });
+      c.roles.forEach(r => {
+        const b = el("button", { type: "button", "aria-pressed": String(m.role === r) }, t(ROLE_LABEL[r]));
+        b.addEventListener("click", () => { m.role = r; render(); });
+        seg.appendChild(b);
+      });
+      ctrls.appendChild(seg);
+    }
+    if (showsSpec(m)) ctrls.appendChild(select(`spec-${m.id}`, t("Spec for slot {n}", { n: i + 1 }), SPECS[m.cls], m.spec, v => { m.spec = v; render(); }));
+    if (m.cls === "priest" && faction === "alliance") ctrls.appendChild(select(`race-${m.id}`, t("Race for slot {n}", { n: i + 1 }), PRIEST_RACES, m.race, v => { m.race = v; render(); }));
+    who.appendChild(ctrls);
+    slot.appendChild(who);
+    const rm = el("button", { type: "button", class: "remove", "aria-label": t("Remove {cls} from slot {n}", { cls: t(c.name), n: i + 1 }) }, t("Remove"));
+    rm.addEventListener("click", () => { party = party.filter(x => x.id !== m.id); render(); });
+    slot.appendChild(rm);
+    box.appendChild(slot);
+  }
+}
+
+function renderBoard(id, title, pill, groups) {
+  const card = document.getElementById(id);
+  card.innerHTML = "";
+  card.appendChild(el("div", { class: "rule-head" }, `<span class="rule-title">${title}</span>${pill}`));
+  const wrap = el("div", { class: "buff-groups" });
+  groups.forEach(g => {
+    const grp = el("div", { class: "buff-group" });
+    if (g.title) grp.appendChild(el("p", { class: "label" }, g.title));
+    const chips = el("div", { class: "chips" });
+    g.chips.forEach(ch => chips.appendChild(el("span", { class: `chip ${ch.state}` }, ch.text)));
+    grp.appendChild(chips);
+    wrap.appendChild(grp);
+  });
+  card.appendChild(wrap);
+}
+
+function renderRules() {
+  const { rules, buffs } = evaluate();
+  const box = document.getElementById("rules");
+  box.innerHTML = "";
+  const PILL = { ok: t("Met"), part: t("Partly"), bad: t("Not met") };
+  rules.forEach(r => {
+    const card = el("div", { class: "rule", "data-state": r.state });
+    card.appendChild(el("div", { class: "rule-head" }, `<span class="rule-title">${r.title}</span><span class="pill ${r.state}">${PILL[r.state]}</span>`));
+    const chips = el("div", { class: "chips" });
+    r.chips.forEach(ch => chips.appendChild(el("span", { class: `chip ${ch.state}` }, ch.text)));
+    card.appendChild(chips);
+    box.appendChild(card);
+  });
+  renderBoard("buffs", t("Raid buffs and utility"), `<span class="pill ${buffs.have ? "ok" : "bad"}">${t("{have} of {total}", { have: buffs.have, total: buffs.total })}</span>`, buffs.groups);
+  const items = evaluateItems();
+  renderBoard("items", t("Item types"), `<span class="pill none">${t("{have} of {total} needed", { have: items.have, total: items.total })}</span>`, items.groups);
+}
+
+/* Switching faction drops the class the new faction can't play (Paladin or Shaman). */
+function setFaction(f) {
+  faction = f;
+  party = party.filter(m => allowed(m.cls));
+  document.querySelectorAll("#faction button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.faction === f)));
+  render();
+}
+
+function render() { renderPicker(); renderSlots(); renderRules(); }
+
+/* Static text is marked with data-i18n; its English original is kept here so switching back works. */
+const STATIC = [...document.querySelectorAll("[data-i18n]")].map(e => [e, e.textContent.trim()]);
+const TITLE = document.title;
+
+function setLang(lang, save) {
+  LANG = lang;
+  document.documentElement.lang = lang;
+  if (save) try { localStorage.setItem("builder-lang", lang); } catch (e) {}
+  document.title = t(TITLE);
+  STATIC.forEach(([e, en]) => (e.textContent = t(en)));
+  const toggle = document.getElementById("lang");
+  toggle.setAttribute("aria-label", t("Language"));
+  document.getElementById("faction").setAttribute("aria-label", t("Faction"));
+  toggle.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.lang === lang)));
+  render();
+}
+
+document.getElementById("clear-all").addEventListener("click", () => { party = []; render(); });
+document.querySelectorAll("#faction button").forEach(b => b.addEventListener("click", () => setFaction(b.dataset.faction)));
+document.querySelectorAll("#lang button").forEach(b => b.addEventListener("click", () => setLang(b.dataset.lang, true)));
+let savedLang = null;
+try { savedLang = localStorage.getItem("builder-lang"); } catch (e) {}
+/* Flo, 2026-10-25: German is the default; a language picked with the switch is remembered. */
+setLang(savedLang === "en" ? "en" : "de", false);
+</script>
+</body></html>
